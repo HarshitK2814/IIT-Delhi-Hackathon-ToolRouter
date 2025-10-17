@@ -1,0 +1,12 @@
+composio-core>=0.7.21  # Using latest available version
+composio-crewai>=0.1.6
+composio[gemini]>=0.7.21
+crewai>=0.52.1
+google-genai>=0.3.0
+litellm>=1.42.10
+yfinance>=0.2.43
+pandas>=2.2.3
+streamlit>=1.38.0
+python-dotenv>=1.0.1
+rich>=13.9.2
+click>=8.1.7
