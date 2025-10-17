@@ -57,6 +57,10 @@ def main(ticker: Optional[str] = None) -> None:
             print(f"Execution payload ready for: {list(actions)}")
         else:
             print("Execution payload: not available")
+        # If the workflow attempted execution via Composio, show the response
+        composio_exec = result.get('composio_execution')
+        if composio_exec is not None:
+            print(f"Composio execution result:\n{composio_exec}")
     else:
         # New-style response (Gemini), extract readable plan
         research_plan = _extract_research_plan(result)

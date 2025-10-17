@@ -38,6 +38,9 @@ htmlcov/
 *.swp
 *.swo
 *~
+# Composio SDK cache and temp files
+.composio_toolkit_cache.json
+gen-lang-client-*.json
 .DS_Store
 Thumbs.db
 

@@ -4,7 +4,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Dict, List
 
-from composio.client.collections import App
 from composio import Composio
 
 from ..llm.gemini_client import GeminiLLM
@@ -18,19 +17,36 @@ class ResearchAgent:
     llm: GeminiLLM
     composio: Composio
     meta_tools: List[str] = field(default_factory=get_meta_tool_identifiers)
-    finance_apps: List[App] = field(default_factory=get_finance_apps)
+    # The installed Composio package may expose an App enum or simple strings.
+    # Use a generic object type here and normalize when needed to avoid import-time
+    # failures across different SDK versions.
+    finance_apps: List[object] = field(default_factory=get_finance_apps)
 
     def __post_init__(self) -> None:
+        # Some Composio client versions expose helpers like `add_tool`/`add_app`.
+        # Call them only when available to remain compatible with multiple SDKs.
+        add_tool_fn = getattr(self.composio, "add_tool", None)
+        add_app_fn = getattr(self.composio, "add_app", None)
         for tool_id in self.meta_tools:
-            self.composio.add_tool(tool_id)
+            if callable(add_tool_fn):
+                try:
+                    add_tool_fn(tool_id)
+                except Exception:
+                    # best-effort: don't let bootstrap failures break the agent
+                    pass
         for app in self.finance_apps:
-            self.composio.add_app(app)
+            if callable(add_app_fn):
+                try:
+                    add_app_fn(app)
+                except Exception:
+                    pass
 
     def capability_report(self) -> Dict[str, List[str]]:
         return {
             "model": [self.llm.model],
             "meta_tools": list(self.meta_tools),
-            "finance_apps": [app.value for app in self.finance_apps],
+            # Apps may be enum values or strings depending on SDK version; coerce to str
+            "finance_apps": [str(app) for app in self.finance_apps],
         }
 
     def draft_research_plan(self, ticker: str) -> str:

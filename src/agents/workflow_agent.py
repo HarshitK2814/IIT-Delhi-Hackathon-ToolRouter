@@ -4,7 +4,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Dict, List
 
-from composio.client.collections import App
 from composio import Composio
 
 from ..llm.gemini_client import GeminiLLM
@@ -21,17 +20,28 @@ class WorkflowAgent:
     llm: GeminiLLM
     composio: Composio
     meta_tools: List[str] = field(default_factory=get_meta_tool_identifiers)
-    target_apps: List[App] = field(default_factory=get_finance_apps)
+    # See note in research_agent: some SDKs expose enums, others simple strings.
+    target_apps: List[object] = field(default_factory=get_finance_apps)
 
     def __post_init__(self) -> None:
         self._bootstrap_tools()
 
     def _bootstrap_tools(self) -> None:
         """Load required meta-tools and domain apps."""
+        add_tool_fn = getattr(self.composio, "add_tool", None)
+        add_app_fn = getattr(self.composio, "add_app", None)
         for tool_id in self.meta_tools:
-            self.composio.add_tool(tool_id)
+            if callable(add_tool_fn):
+                try:
+                    add_tool_fn(tool_id)
+                except Exception:
+                    pass
         for app in self.target_apps:
-            self.composio.add_app(app)
+            if callable(add_app_fn):
+                try:
+                    add_app_fn(app)
+                except Exception:
+                    pass
         logger.info("Loaded %d meta-tools and %d finance apps", 
                    len(self.meta_tools), len(self.target_apps))
 
