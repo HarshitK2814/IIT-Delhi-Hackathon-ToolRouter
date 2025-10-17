@@ -1,10 +1,14 @@
 import os
 import logging
 from composio import Composio
-from composio_gemini import GeminiProvider
+try:
+    from composio_gemini import GeminiProvider
+except Exception:
+    GeminiProvider = None
 from google import genai
 from google.genai import types
 from ..utils.cache_utils import load_cache, save_cache
+from ..orchestrator.router_session import create_tool_router_session
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -26,7 +30,11 @@ class HedgeFundResearchWorkflow:
         self.gemini_client = genai.Client(api_key=api_key)
 
         # Initialize Composio with Gemini provider
-        self.composio = Composio(provider=GeminiProvider())
+        if GeminiProvider is not None:
+            self.composio = Composio(provider=GeminiProvider())
+        else:
+            logger.warning("composio_gemini provider not available; initializing Composio without provider")
+            self.composio = Composio()
 
         logger.info(f"✅ Initialized HedgeFundResearchWorkflow for ticker: {self.ticker}")
 
@@ -116,7 +124,62 @@ class HedgeFundResearchWorkflow:
             except Exception:
                 logger.debug("Error while parsing Gemini response function call parts", exc_info=True)
 
-            return response
+            # Normalize/flatten Gemini response into a human-readable string
+            research_text = None
+            try:
+                candidates = getattr(response, "candidates", None)
+                if candidates and len(candidates) > 0:
+                    content = getattr(candidates[0], "content", None)
+                    parts = getattr(content, "parts", None)
+                    if parts:
+                        texts = []
+                        for p in parts:
+                            text = getattr(p, "text", None)
+                            if text:
+                                texts.append(text)
+                            else:
+                                texts.append(str(p))
+                        research_text = "\n".join(texts)
+            except Exception:
+                logger.debug("Failed to normalize Gemini response to text", exc_info=True)
+
+            if not research_text:
+                try:
+                    research_text = str(response)
+                except Exception:
+                    research_text = "<no research plan available>"
+
+            # Try to create a Tool Router session; if composio or tool-router isn't
+            # installed this will raise a RuntimeError from router_session.create_tool_router_session
+            mcp_url = None
+            session_info = None
+            try:
+                session_info = create_tool_router_session()
+                mcp_url = session_info.get("mcp_server_url")
+            except Exception:
+                logger.debug("Tool Router session not available in this environment", exc_info=True)
+
+            # Build a minimal execution payload (placeholder) referencing available tools
+            execute_payload = {
+                "ticker": self.ticker,
+                "tools": tool_names,
+                "actions": [
+                    {
+                        "name": "research_summary",
+                        "params": {"ticker": self.ticker},
+                    }
+                ],
+            }
+
+            result = {
+                "ticker": self.ticker,
+                "mcp_url": mcp_url,
+                "research_plan": research_text,
+                "auth_status": "ok",
+                "execute_payload": execute_payload,
+            }
+
+            return result
 
         except Exception as e:
             logger.error(f"Error in HedgeFundResearchWorkflow: {e}", exc_info=True)
