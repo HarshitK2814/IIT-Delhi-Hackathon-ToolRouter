@@ -13,7 +13,7 @@ This project was built for the **IIT Delhi x Composio Hackathon** to showcase ho
 ## 2. High-Level Architecture
 ```mermaid
 graph TD
-    %% === STYLE SECTION ===
+    %% === STYLES ===
     classDef input fill:#c9f2d0,stroke:#2a9134,stroke-width:2px,color:#000;
     classDef process fill:#d6e0f5,stroke:#334a94,stroke-width:2px,color:#000;
     classDef output fill:#ffe9b5,stroke:#b58b00,stroke-width:2px,color:#000;
@@ -22,14 +22,14 @@ graph TD
 
     %% === NODES ===
     A[Ticker Input]:::input
-    B[Gemini 2.0 Flash<br/>→ Generates CSV Insights]:::process
-    C[CSV Parser<br/>→ Structured Data Extraction]:::process
+    B[Gemini 2.0 Flash - CSV Insights]:::process
+    C[CSV Parser - Structured Data]:::process
     D[Sheets Uploader]:::tool
-    G[Google Sheets<br/>(Data Storage)]:::service
-    H[Risk Term Scanner<br/>→ Detects Financial Risks]:::process
-    F[Composio Tool Router<br/>→ Smart Workflow Manager]:::tool
-    I[Gmail Draft<br/>(Create Email Draft)]:::output
-    J[Slack Alert<br/>(Post Message)]:::output
+    G[Google Sheets (Data Storage)]:::service
+    H[Risk Term Scanner - Financial Risks]:::process
+    F[Composio Tool Router - Workflow Manager]:::tool
+    I[Gmail Draft - Create Email]:::output
+    J[Slack Alert - Post Message]:::output
 
     %% === CONNECTIONS ===
     A --> B
@@ -41,23 +41,25 @@ graph TD
     F --> I
     F --> J
 
-    %% === GROUPING ===
-    subgraph "Input & AI Processing"
-        A --> B
-        B --> C
+    %% === GROUPS ===
+    subgraph Input_and_AI_Processing
+        A
+        B
+        C
     end
 
-    subgraph "Data Handling"
-        C --> D
-        D --> G
+    subgraph Data_Handling
+        D
+        G
     end
 
-    subgraph "Risk & Automation"
-        C --> H
-        H --> F
-        F --> I
-        F --> J
+    subgraph Risk_and_Automation
+        H
+        F
+        I
+        J
     end
+
 
 ```
 
@@ -192,4 +194,5 @@ python -m src.main --ticker NVDA
 ---
 
 For questions or suggestions, open an issue or ping `@HarshitK2814` on GitHub.
+
 
