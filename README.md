@@ -10,8 +10,10 @@ This project was built for the **IIT Delhi x Composio Hackathon** to showcase ho
 - Run focused financial research using Gemini 2.0 Flash.
 - Persist structured output directly into an analyst-friendly Google Sheet.
 
+---
+
 ## 2. High-Level Architecture
-```mermaid
+``` mermaid
 graph TD
     %% === STYLES ===
     classDef input fill:#c9f2d0,stroke:#2a9134,stroke-width:2px,color:#000;
@@ -59,8 +61,6 @@ graph TD
         I
         J
     end
-
-
 ```
 
 ### Components
@@ -194,5 +194,6 @@ python -m src.main --ticker NVDA
 ---
 
 For questions or suggestions, open an issue or ping `@HarshitK2814` on GitHub.
+
 
 
