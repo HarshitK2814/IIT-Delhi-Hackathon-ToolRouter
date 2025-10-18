@@ -10,57 +10,17 @@ This project was built for the **IIT Delhi x Composio Hackathon** to showcase ho
 - Run focused financial research using Gemini 2.0 Flash.
 - Persist structured output directly into an analyst-friendly Google Sheet.
 
----
-
 ## 2. High-Level Architecture
-``` mermaid
-graph TD
-    %% === STYLES ===
-    classDef input fill:#c9f2d0,stroke:#2a9134,stroke-width:2px,color:#000;
-    classDef process fill:#d6e0f5,stroke:#334a94,stroke-width:2px,color:#000;
-    classDef output fill:#ffe9b5,stroke:#b58b00,stroke-width:2px,color:#000;
-    classDef tool fill:#f4c2c2,stroke:#a80000,stroke-width:2px,color:#000;
-    classDef service fill:#cce5ff,stroke:#0056b3,stroke-width:2px,color:#000;
-
-    %% === NODES ===
-    A[Ticker Input]:::input
-    B[Gemini 2.0 Flash - CSV Insights]:::process
-    C[CSV Parser - Structured Data]:::process
-    D[Sheets Uploader]:::tool
-    G[Google Sheets (Data Storage)]:::service
-    H[Risk Term Scanner - Financial Risks]:::process
-    F[Composio Tool Router - Workflow Manager]:::tool
-    I[Gmail Draft - Create Email]:::output
-    J[Slack Alert - Post Message]:::output
-
-    %% === CONNECTIONS ===
-    A --> B
-    B --> C
-    C --> D
-    D --> G
-    C --> H
-    H --> F
-    F --> I
-    F --> J
-
-    %% === GROUPS ===
-    subgraph Input_and_AI_Processing
-        A
-        B
-        C
-    end
-
-    subgraph Data_Handling
-        D
-        G
-    end
-
-    subgraph Risk_and_Automation
-        H
-        F
-        I
-        J
-    end
+```mermaid
+graph LR
+    A[Ticker Input] --> B[Gemini 2.0 Flash]
+    B -->|CSV Insights| C[CSV Parser]
+    C --> D[Sheets Uploader]
+    D --> G[Google Sheets]
+    C --> H[Risk Term Scanner]
+    H --> F[Composio Tool Router]
+    F --> I["Gmail Draft (GMAIL_CREATE_EMAIL_DRAFT)"]
+    F --> J["Slack Alert (SLACK_CHAT_POST_MESSAGE)"]
 ```
 
 ### Components
@@ -194,6 +154,3 @@ python -m src.main --ticker NVDA
 ---
 
 For questions or suggestions, open an issue or ping `@HarshitK2814` on GitHub.
-
-
-
