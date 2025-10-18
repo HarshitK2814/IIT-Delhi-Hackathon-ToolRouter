@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # Friction Log
 
 | Date       | Module                                | Challenge                                             | Resolution                                      |
@@ -31,4 +30,5 @@
 - Mocking auth states speeds up development
 - Connected-account UUIDs differ from legacy IDs—always inspect `connected_accounts.list()`
 - Slack block payloads must respect schema size limits
->>>>>>> 43ffc59 (Document automation updates and env defaults)
+
+
