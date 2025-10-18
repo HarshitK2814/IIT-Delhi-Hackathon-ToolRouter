@@ -16,23 +16,27 @@ graph LR
     A[Ticker Input] --> B[Gemini 2.0 Flash]
     B -->|CSV Insights| C[CSV Parser]
     C --> D[Sheets Uploader]
-    A --> E[Composio Tool Router]
-    E --> F[List Tools / MCP URL]
     D --> G[Google Sheets]
+    C --> H[Risk Term Scanner]
+    H --> F[Composio Tool Router]
+    F --> I[Gmail Draft (GMAIL_CREATE_EMAIL_DRAFT)]
+    F --> J[Slack Alert (SLACK_CHAT_POST_MESSAGE)]
 ```
 
 ### Components
-- **`src/workflows/hedge_fund_research.py`**: Entry point for research. Handles Gemini prompts, CSV parsing, and Sheets upload.
-- **`src/orchestrator/router_session.py`**: Creates and logs the Composio Tool Router MCP session.
-- **`src/agents/`**: Agents that can consume the workflow (used in earlier prototypes).
-- **`scripts/`**: Helper utilities for debugging and manual verification.
-- **`friction_log.md`**: Living document capturing implementation challenges and fixes.
+- **`src/workflows/hedge_fund_research.py`**: Orchestrates the end-to-end research flow—Gemini prompting, CSV parsing, Google Sheets ingestion, Gmail draft creation, and Slack alerting.
+- **`src/orchestrator/router_session.py`**: Creates/logs a Composio Tool Router MCP session for tool discovery.
+- **`src/agents/`**: Explorer agents used in earlier prototypes for orchestrating the workflow.
+- **`src/utils/`**: Helpers for caching, HTTP, prompt formatting, etc.
+- **`scripts/`**: Utilities for spot-checking Composio tool availability, Sheets execution, and local runs.
+- **`friction_log.md`**: Timeline of blockers and fixes to help future contributors.
 
 ## 3. Demo Highlights
-- **Gemini CSV Prompting**: The workflow explicitly instructs Gemini to return CSV-formatted rows with the columns `Section`, `Insight`, `DataPoints`, `Risks`, and `Opportunities`.
-- **Resilient Execution**: Gemini overloads (HTTP 503) trigger exponential backoff retries.
-- **Sheet Auto-Provisioning**: If the specified worksheet (e.g., `Try Out`) does not exist, it is created on the fly.
-- **Composio Awareness**: The workflow lists available tools and logs the MCP server URL for downstream agents.
+- **Gemini CSV Insight Generation**: Structured prompting drives Gemini 2.0 Flash to emit CSV rows (`Section`, `Insight`, `DataPoints`, `Risks`, `Opportunities`) ready for post-processing.
+- **Risk-Aware Automations**: A lightweight risk-term scanner routes high-signal summaries to Composio, triggering Gmail drafts and Slack alerts only when needed.
+- **Sheet Auto-Provisioning**: New worksheet tabs are created and populated automatically, keeping analyst spreadsheets up to date without manual prep.
+- **Resilient Execution**: Exponential backoff guards against Gemini 503s while defensive handlers wrap Sheets, Gmail, and Slack calls.
+- **Composio Observability**: Tool Router sessions log available toolkits, MCP URLs, and action payloads for downstream agents and debugging.
 
 ## 4. Prerequisites
 - Python 3.12+
@@ -57,63 +61,92 @@ graph LR
    ```ini
    COMPOSIO_API_KEY=your_composio_api_key
    COMPOSIO_WORKSPACE_ID=your_workspace_id
+   COMPOSIO_GMAIL_ACCOUNT_ID=<uuid via composio_client.connected_accounts.list>
+   COMPOSIO_SLACK_ACCOUNT_ID=<uuid via composio_client.connected_accounts.list>
+   GMAIL_RECIPIENTS="harshitfan382@gmail.com,harshitkumawat0910@gmail.com"
+   SLACK_ALERT_CHANNEL=C09LMG2NGQ3
+   RISK_TERMS="risk,competition,disruption,geopolitical,regulatory,failure,loss,debt,drawdown,negative,decrease,down,decline,crisis,impairment"
    GEMINI_API_KEY=your_gemini_api_key
    GOOGLE_SHEETS_SPREADSHEET_ID=spreadsheet_id
    GOOGLE_SHEETS_SHEET_NAME=Try Out
-   GOOGLE_SERVICE_ACCOUNT_FILE=path/TO/service_account.json
+   GOOGLE_SERVICE_ACCOUNT_FILE=C:\secrets\service-account.json
    TOOL_ROUTER_USER_ID=demo-user
    ```
-   *PowerShell tip:* use `$env:VAR='value'` for one-off assignments.
+   *PowerShell tip:* use `$env:VAR='value'` for one-off assignments. Retrieve Composio UUIDs programmatically with `composio_client.Composio(api_key).connected_accounts.list()`.
 3. **Share the sheet**
-   - Open the Google Sheet referenced by `GOOGLE_SHEETS_SPREADSHEET_ID`.
-   - Share it with the `client_email` from the service account JSON as an **Editor**.
+   - Share the spreadsheet with the `client_email` from your service-account JSON.
+   - Confirm edit access before running the workflow.
 
 ## 6. Running the Workflow
 ```bash
 python -m src.main --ticker NVDA
 ```
-### Execution Flow
-1. Loads env vars and instantiates Gemini + Composio clients.
-2. Requests Gemini for a CSV-formatted analysis.
-3. Parses the CSV, prepends the ticker to every data row, and uploads everything to Google Sheets.
-4. Logs tool availability and the Tool Router MCP URL.
-5. Returns a JSON-like result with the report, Sheets status, and router info.
+### Execution Flow (End-to-End)
+1. Loads environment variables and instantiates Gemini + Composio clients.
+2. Prompts Gemini for a CSV-formatted research summary.
+3. Parses CSV output, enriches rows with the ticker, and uploads data to Google Sheets (creating the tab if required).
+4. Logs Composio tool metadata and caches the Tool Router MCP URL.
+5. Executes optional Gmail + Slack actions via `_execute_action()`:
+   - **Gmail**: `GMAIL_CREATE_EMAIL_DRAFT` with `recipient_email`, `extra_recipients`, `subject`, `body`, `is_html` as needed.
+   - **Slack**: `SLACK_CHAT_POST_MESSAGE` with truncated Markdown blocks plus a sheet link.
+6. Returns a JSON payload summarizing research results, Sheets status, and automation execution logs.
 
-## 7. Supporting Scripts
-- `scripts/list_composio_tools.py`: Prints all meta-tools available to the Tool Router session.
-- `scripts/run_with_env.py`: Convenience wrapper to run commands with env variables loaded.
-- `scripts/try_sheets_execute.py`: Minimal reproduction for Google Sheets append logic.
+## 7. Automation Workflows
+- **Gmail Drafting (`_prepare_gmail_action`)**
+  - Pulls recipients from `GMAIL_RECIPIENTS`.
+  - Adds sheet link and research summary to the message body.
+  - Uses Composio v3 `tools.execute` to create a draft tied to `COMPOSIO_GMAIL_ACCOUNT_ID`.
 
-## 8. Troubleshooting & FAQ
-- **403 Permission Error when writing to Sheets**
-  - Ensure the service account email has editor access.
-  - Confirm `GOOGLE_SERVICE_ACCOUNT_FILE` points to the correct JSON.
-- **WorksheetNotFound for `Try Out`**
-  - The workflow will create it automatically. If you renamed the tab manually, update `GOOGLE_SHEETS_SHEET_NAME`.
-- **Gemini 503 UNAVAILABLE**
-  - Wait a few seconds and rerun. Automatic retries are already in place.
-- **`composio_gemini` module missing**
-  - Optional dependency. The workflow now guards the import; you can continue without it.
-- **Git push rejected after teammates' updates**
-  - Run `git pull --rebase origin main`, resolve conflicts (see `friction_log.md`), then `git push`.
+- **Slack Alerts (`_prepare_slack_action`)**
+  - Scans `research_text` for terms in `RISK_TERMS`.
+  - Truncates summary to <3000 characters and posts to `SLACK_ALERT_CHANNEL` if a risk is detected.
 
-## 9. Testing Checklist
+- **Tool Discovery**
+  - `list_composio_tools.py` provides a CLI snapshot of available toolkits and actions for debugging.
+
+## 8. Supporting Scripts
+- `scripts/list_composio_tools.py`
+- `scripts/run_with_env.py`
+- `scripts/try_sheets_execute.py`
+
+## 9. Troubleshooting & FAQ
+- **Sheets 403**: Ensure the service-account email has editor access and `GOOGLE_SERVICE_ACCOUNT_FILE` points to the rotated credential outside the repo.
+- **WorksheetNotFound**: The workflow auto-creates tabs; adjust `GOOGLE_SHEETS_SHEET_NAME` if the tab was renamed.
+- **Gemini 503 UNAVAILABLE**: Retries are in place—wait a few seconds and rerun.
+- **`composio_gemini` missing**: Optional plugin; guarded import prevents crashes.
+- **Composio `Invalid uuid`**: Retrieve connected-account UUIDs with the Composio client and update `.env` accordingly.
+- **Gmail draft `recipient_email` error**: `GMAIL_RECIPIENTS` must have at least one email; the first becomes `recipient_email`, the rest `extra_recipients`.
+- **Slack `invalid_blocks`**: The workflow truncates payloads automatically. Keep downstream blocks concise.
+- **Git push rejected**: Use `git pull --rebase origin main`, resolve conflicts (refer to `friction_log.md`), then `git push`.
+
+## 10. Testing & Verification Checklist
 - `python -m src.main --ticker NVDA`
 - `python scripts/list_composio_tools.py`
 - `python scripts/try_sheets_execute.py --ticker NVDA`
+- Manual verification: Gmail draft reaches intended recipients; Slack alert posts to `SLACK_ALERT_CHANNEL`.
 
-## 10. Contributing
-1. Create a feature branch: `git checkout -b feature/my-update`
-2. Make changes + add tests where relevant.
-3. Update `friction_log.md` if you encounter new integration hurdles.
-4. Submit a PR referencing the specific workflow or module touched.
+## 11. Deployment Notes
+- Set `COMPOSIO_API_KEY`, `GEMINI_API_KEY`, `COMPOSIO_*_ACCOUNT_ID`, and sheet identifiers as environment variables in CI/CD or secrets store.
+- Mount the service-account JSON at the path defined in `GOOGLE_SERVICE_ACCOUNT_FILE`.
+- Ensure network access to Composio and Google APIs from the deployment target.
 
-## 11. Resources
+## 12. Contributing
+1. `git checkout -b feature/my-update`
+2. Implement changes and add tests.
+3. Update `friction_log.md` with new hurdles/solutions.
+4. Open a PR referencing the affected modules.
+
+## 13. Security Notes
+- Store service-account JSON outside the repo; rotate keys immediately if committed.
+- `.gitignore` excludes `*.json`, `.env`, logs, and cache files—keep it that way.
+- Review `friction_log.md` for credential-related incidents and mitigations.
+
+## 14. Resources
 - [Gemini API Docs](https://ai.google.dev/gemini-api/docs)
 - [Composio Tool Router Overview](https://docs.composio.dev/)
 - [gspread Documentation](https://docs.gspread.org/)
 
-## 12. Acknowledgements
+## 15. Acknowledgements
 - IIT Delhi Hackathon organizers & mentors
 - Composio engineering team for Tool Router access
 - Google AI Studio for Gemini credits
