@@ -1,48 +1,16 @@
-# Environment variables
-.env
-.env.local
-.env.*.local
-
-# Virtual Environment
+# Virtual environments
 venv/
 
-# Python
+# Python caches
 __pycache__/
 *.py[cod]
-*$py.class
-*.so
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-*.log
-.pytest_cache/
-.coverage
-htmlcov/
 
-# IDEs and editors
-.idea/
-.vscode/
-*.swp
-*.swo
-*~
-# Composio SDK cache and temp files
+# Logs and caches
+*.log
 .composio_toolkit_cache.json
-gen-lang-client-*.json
-.DS_Store
-Thumbs.db
+composio_tools.log
 
-# Logs
-*.log
+# Local environment & secrets
+.env
+*.env
+*.json
